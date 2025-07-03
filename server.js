@@ -6,6 +6,8 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import expenseRoutes from './routes/expenses.js';
+import authRoutes from './routes/auth.js';// to test
+import bcrypt from 'bcryptjs';
 
 
 dotenv.config();
@@ -15,6 +17,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+app.use('/api', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 
 // your secret must be in `.env`
@@ -25,12 +28,17 @@ app.post('/api/login', async (req, res) => {
   try {
     const user = await prisma.customer.findUnique({ where: { email } });
 
-    if (!user || user.password !== password) {
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     if (!validator.isEmail(email)) {
       return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // to test verify
+    if (!user.verified) {
+      return res.status(403).json({ error: 'Please verify your email before logging in.' });
     }
 
     // create JWT token
@@ -51,76 +59,6 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-// Example route
-app.get('/api/users', async (req, res) => {
-  try {
-    const users = await prisma.customer.findMany();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-app.post('/api/users', async (req, res) => {
-  const {name, email, password} = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name and email are required.' });
-  }
-  if (!validator.isEmail(email)) {
-    return res.status(400).json({ error: 'Invalid email format' });
-  }
-
-  try {
-    const existingUser = await prisma.customer.findUnique({
-      where: { email },
-    });
-    if (existingUser) {
-      return res.status(409).json({ error: 'User with this email already exists.' });
-    }
-    const newUser = await prisma.customer.create({
-      data: {
-        name,
-        email,
-        password,
-      }
-    });
-    res.status(201).json(newUser);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create user' });
-  }
-});
-
-app.post('/api/expenses', authenticate, async (req, res) => {
-  const { title, amount } = req.body;
-  if (!title || !amount) {
-    return res.status(400).json({ error: 'Title and amount are required' });
-  }
-
-  try {
-    const expense = await prisma.expense.create({
-      data: {
-        title,
-        amount: parseFloat(amount),
-        userId: req.customer.id,
-      },
-    });
-    res.status(201).json(expense);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create user' });
-  }
-});
-
-app.get('/api/expenses', authenticate, async (req, res) => {
-  try {
-    const expenses = await prisma.expense.findMany({
-      where: { userId: req.customer.id },
-    });
-    res.json(expenses);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to load expenses' });
   }
 });
 

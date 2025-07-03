@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, htmlContent) => {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -10,10 +10,10 @@ const sendEmail = async (to, subject, text) => {
         },
     });
     await transporter.sendMail({
-        from: `Tracker Expense <${process.env.EMAIL_USER}>`,
+        from: `Tracker<${process.env.EMAIL_USER}>`,
         to,
         subject,
-        text,
+        html: htmlContent,
     });
 };
 

@@ -6,56 +6,59 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 
-router.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
+// router.post('/api/login', async (req, res) => {
+//   const { email, password } = req.body;
 
-  const user = await prisma.customer.findUnique({ where: { email } });
+//   const user = await prisma.customer.findUnique({ where: { email } });
 
-  if (!user || user.password !== password) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
+//   if (!user || user.password !== password) {
+//     return res.status(401).json({ error: 'Invalid credentials' });
+//   }
 
-  const token = jwt.sign(
-    { id: user.id, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '1h' }
-  );
+//   const token = jwt.sign(
+//     { id: user.id, email: user.email },
+//     process.env.JWT_SECRET,
+//     { expiresIn: '1h' }
+//   );
 
-  res.json({
-    token: token,
-    customer: {
-      id: user.id,
-      email: user.email,
-      name: user.name
-    }
-  });
-});
+//   res.json({
+//     token: token,
+//     customer: {
+//       id: user.id,
+//       email: user.email,
+//       name: user.name
+//     }
+//   });
+// });
 
-router.get('/api/expenses', authenticate, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const expenses = await prisma.expense.findMany({
       where: { userId: req.customer.id },
     });
     res.json(expenses);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch expenses' });
+    res.status(500).json({ error: 'Failed to load expenses' });
   }
 });
 
-router.post('/api/expenses', authenticate, async (req, res) => {
-  const { title, amount, date } = req.body;
+router.post('/', authenticate, async (req, res) => {
+  const { title, amount } = req.body;
+  if (!title || !amount) {
+    return res.status(400).json({ error: 'Title and amount are required' });
+  }
+
   try {
-    const newExpense = await prisma.expense.create({
+    const expense = await prisma.expense.create({
       data: {
         title,
-        amount,
-        date: date || new Date(),
+        amount: parseFloat(amount),
         userId: req.customer.id,
       },
     });
-    res.status(201).json(newExpense);
+    res.status(201).json(expense);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create expense' });
+    res.status(500).json({ error: 'Failed to create user' });
   }
 });
 
